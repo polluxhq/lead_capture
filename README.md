@@ -6,26 +6,47 @@ A tiny Node.js/Express API with two dummy endpoints for lead capture.
 
 ### `POST /v1/dummy/leads`
 
+Accepts a JSON body with `api_token` and stores a lead in MySQL (`id`, `api_token`, `status`, `ftd_date`, `created_at`). `status` is picked at random from `new`, `pending`, `registered`, `rejected`, or `duplicate`. `ftd_date` is always `null`.
+
 Returns a created lead response:
 
 ```json
 {
-  "id": "74a3676e",
+  "id": 1,
   "message": "Created successfully",
-  "auto_login_url": "https://your-domain.com/74a3676f0ba011f1815753d69739b8d6"
+  "auto_login_url": "https://your-domain.com/1"
 }
 ```
 
-- `id` is a random 8-character hex string.
+- `id` is the MySQL auto-increment integer for the stored lead.
 - `message` is always `"Created successfully"`.
-- `auto_login_url` is built from the configured `APP_URL` plus a random 32-character hex token.
+- `auto_login_url` is built from the configured `APP_URL` plus the lead `id`.
 
 ### `GET /v1/dummy/leads`
 
-Always returns an empty array:
+Query parameters:
+
+- `api_token` (required) — returns only leads stored with this token
+- `per_page` (optional) — max number of records to return. Defaults to the last **1000**
+- `start_date` / `end_date` (optional) — filter by `created_at` (inclusive). Date-only values like `2026-09-01` cover the full day
+
+```bash
+curl "http://localhost:3000/v1/dummy/leads?api_token=your-token"
+curl "http://localhost:3000/v1/dummy/leads?api_token=your-token&per_page=10&start_date=2026-09-01&end_date=2026-09-03"
+```
+
+Returns an array of matching leads, newest first:
 
 ```json
-[]
+[
+  {
+    "id": 1,
+    "api_token": "your-token",
+    "status": "pending",
+    "ftd_date": null,
+    "created_at": "2026-09-03T07:21:00.000Z"
+  }
+]
 ```
 
 ## Local development
@@ -36,7 +57,7 @@ Always returns an empty array:
    npm install
    ```
 
-2. Copy the environment template and adjust it:
+2. Copy the environment template and adjust it. Point the `DB_*` variables at a MySQL server (the app creates the database and `leads` table on startup):
 
    ```bash
    cp .env.example .env
@@ -51,8 +72,10 @@ Always returns an empty array:
 4. Test the endpoints:
 
    ```bash
-   curl -X POST http://localhost:3000/v1/dummy/leads
-   curl http://localhost:3000/v1/dummy/leads
+   curl -X POST http://localhost:3000/v1/dummy/leads \
+     -H "Content-Type: application/json" \
+     -d '{"api_token":"your-token"}'
+   curl "http://localhost:3000/v1/dummy/leads?api_token=your-token"
    ```
 
 ## Hosting on AWS with Laravel Forge
@@ -99,6 +122,11 @@ git push -u origin main
    PORT=3000
    APP_URL=https://api.yourdomain.com
    NODE_ENV=production
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=pollux_lead_capture
+   DB_USERNAME=forge
+   DB_PASSWORD=your-mysql-password
    ```
 
    Replace `api.yourdomain.com` with your actual domain. Do **not** include a trailing slash.
@@ -166,8 +194,10 @@ git push -u origin main
 3. Once DNS propagates and SSL is installed, test:
 
    ```bash
-   curl -X POST https://api.yourdomain.com/v1/dummy/leads
-   curl https://api.yourdomain.com/v1/dummy/leads
+   curl -X POST https://api.yourdomain.com/v1/dummy/leads \
+     -H "Content-Type: application/json" \
+     -d '{"api_token":"your-token"}'
+   curl "https://api.yourdomain.com/v1/dummy/leads?api_token=your-token"
    ```
 
 ### Useful server commands
@@ -191,6 +221,7 @@ pm2 stop pollux-lead-capture
 ├── forge/
 │   ├── deploy.sh              # Forge deployment script
 │   └── nginx.conf             # Nginx reverse proxy config
+├── db.js                      # MySQL connection and lead inserts
 ├── index.js                   # Express server
 ├── package.json
 └── README.md
