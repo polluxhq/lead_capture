@@ -56,6 +56,14 @@ app.post('/v1/dummy/slow/leads', async (req, res) => {
     return res.status(400).json({ message: 'api_token is required' });
   }
 
+  const delaySeconds = req.query.delay === undefined
+    ? 45
+    : Number(req.query.delay);
+
+  if (!Number.isFinite(delaySeconds) || delaySeconds < 0) {
+    return res.status(400).json({ message: 'delay must be a non-negative number of seconds' });
+  }
+
   const statuses = Array.isArray(req.body.status) && req.body.status.length
     ? req.body.status
     : LEAD_STATUSES;
@@ -69,7 +77,7 @@ app.post('/v1/dummy/slow/leads', async (req, res) => {
       ftdDate: null,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 45000));
+    await new Promise((resolve) => setTimeout(resolve, delaySeconds * 1000));
 
     res.status(201).json({
       id,
