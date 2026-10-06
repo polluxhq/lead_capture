@@ -39,6 +39,43 @@ app.post('/v1/dummy/leads', async (req, res) => {
       message: 'Created successfully',
       auto_login_url: `${APP_URL}/${id}`,
     });
+
+    // setTimeout(() => {
+    //   res.status(200).json({ message: 'Waited 70 seconds and responded OK' });
+    // }, 70000);
+  } catch (error) {
+    console.error('Failed to store lead:', error);
+    return res.status(500).json({ message: 'Failed to store lead' });
+  }
+});
+
+app.post('/v1/dummy/slow/leads', async (req, res) => {
+  const apiToken = req.body?.api_token;
+
+  if (!apiToken || typeof apiToken !== 'string') {
+    return res.status(400).json({ message: 'api_token is required' });
+  }
+
+  const statuses = Array.isArray(req.body.status) && req.body.status.length
+    ? req.body.status
+    : LEAD_STATUSES;
+
+  const status = randomStatus(statuses);
+
+  try {
+    const id = await insertLead({
+      apiToken,
+      status,
+      ftdDate: null,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 45000));
+
+    res.status(201).json({
+      id,
+      message: 'Created successfully',
+      auto_login_url: `${APP_URL}/${id}`,
+    });
   } catch (error) {
     console.error('Failed to store lead:', error);
     return res.status(500).json({ message: 'Failed to store lead' });
